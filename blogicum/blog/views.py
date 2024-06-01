@@ -146,8 +146,8 @@ class CommentUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def get_success_url(self):
-        return redirect('blog:post_detail',
-                        self.kwargs['post_id'])
+        return reverse('blog:post_detail',
+                       kwargs={'post_id': self.kwargs['post_id']})
 
 
 class CommentDeleteView(LoginRequiredMixin, DeleteView):
