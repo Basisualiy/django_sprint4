@@ -1,12 +1,13 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
-from django.db.models.functions import Now
+from django.http import Http404
 from django.shortcuts import (render,
                               get_object_or_404,
                               redirect,
                               reverse)
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.views.generic import (CreateView,
                                   ListView,
                                   DeleteView,
@@ -17,6 +18,10 @@ from .models import Post, Category, Comments, User
 
 
 POST_ON_PAGE = 10
+
+
+def now():
+    return timezone.now()
 
 
 def query():
@@ -45,13 +50,14 @@ class PostCreateView(LoginRequiredMixin, CreateView):
 class IndexListViev(ListView):
     model = Post
     queryset = query().filter(is_published=True,
-                              pub_date__lt=Now(),
+                              pub_date__lt=now(),
                               category__is_published=True)
     template_name = 'blog/index.html'
     paginate_by = POST_ON_PAGE
 
 
 class ProfileDetailViev(ListView):
+    author = None
     model = Post
     template_name = 'blog/profile.html'
     slug_field = 'username'
@@ -59,8 +65,13 @@ class ProfileDetailViev(ListView):
     queryset = query()
     paginate_by = POST_ON_PAGE
 
+    def dispatch(self, request, *args, **kwargs):
+        self.author = get_object_or_404(User,
+                                        username=kwargs['username'])
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
-        if self.request.user.username == self.kwargs['username']:
+        if self.request.user == self.author:
             queryset = (super()
                         .get_queryset()
                         .filter(author__username=self.kwargs['username'],))
@@ -69,7 +80,8 @@ class ProfileDetailViev(ListView):
                         .get_queryset()
                         .filter(author__username=self.kwargs['username'],
                                 is_published=True,
-                                category__is_published=True))
+                                category__is_published=True,
+                                pub_date__lt=now()))
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -168,8 +180,11 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
 def post_detail(request, post_id):
     template = 'blog/detail.html'
     post = get_object_or_404(Post, pk=post_id)
-    if post.is_published is False and request.user != post.author:
-        return redirect('blog:index')
+    if ((post.is_published is False
+         or post.category.is_published is False
+         or post.pub_date >= now())
+       and request.user != post.author):
+        raise Http404
     comments = (Comments.objects
                 .filter(post__id=post_id)
                 .order_by('created_at'))
@@ -192,7 +207,7 @@ class CategoryDetailViev(ListView):
         queryset = (super()
                     .get_queryset()
                     .filter(category__slug=self.kwargs['category_slug'],
-                            pub_date__lt=Now(),
+                            pub_date__lt=now(),
                             is_published=True,
                             category__is_published=True))
         return queryset
@@ -203,7 +218,7 @@ class CategoryDetailViev(ListView):
             Category,
             slug=self.kwargs['category_slug'],
             is_published=True,
-            created_at__lt=Now())
+            created_at__lt=now())
         return context
 
 
