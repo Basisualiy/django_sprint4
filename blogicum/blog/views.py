@@ -32,30 +32,6 @@ def query():
             )
 
 
-class PostCreateView(LoginRequiredMixin, CreateView):
-    author = None
-    model = Post
-    form_class = PostForm
-    template_name = 'blog/create.html'
-
-    def form_valid(self, form):
-        form.instance.author = self.request.user
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse('blog:profile',
-                       kwargs={'username': self.object.author.username})
-
-
-class IndexListViev(ListView):
-    model = Post
-    queryset = query().filter(is_published=True,
-                              pub_date__lt=now(),
-                              category__is_published=True)
-    template_name = 'blog/index.html'
-    paginate_by = POST_ON_PAGE
-
-
 class ProfileDetailViev(ListView):
     author = None
     model = Post
@@ -176,7 +152,30 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
                        kwargs={'post_id': self.kwargs['post_id']})
 
 
-# заменить на класс
+class PostCreateView(LoginRequiredMixin, CreateView):
+    author = None
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/create.html'
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('blog:profile',
+                       kwargs={'username': self.object.author.username})
+
+
+class IndexListViev(ListView):
+    model = Post
+    queryset = query().filter(is_published=True,
+                              pub_date__lt=now(),
+                              category__is_published=True)
+    template_name = 'blog/index.html'
+    paginate_by = POST_ON_PAGE
+
+
 def post_detail(request, post_id):
     template = 'blog/detail.html'
     post = get_object_or_404(Post, pk=post_id)
