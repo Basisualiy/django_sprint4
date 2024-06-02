@@ -5,7 +5,7 @@ from django.db import models
 User = get_user_model()
 
 
-class FieldAddModel(models.Model):
+class AddPublishedCreatedFieldModel(models.Model):
     is_published = models.BooleanField('Опубликовано',
                                        default=True,
                                        help_text=('Снимите галочку, чтобы'
@@ -17,7 +17,7 @@ class FieldAddModel(models.Model):
         abstract = True
 
 
-class Post(FieldAddModel):
+class Post(AddPublishedCreatedFieldModel):
     title = models.CharField('Заголовок',
                              max_length=256,)
     text = models.TextField('Текст')
@@ -52,7 +52,7 @@ class Post(FieldAddModel):
         return self.title
 
 
-class Category(FieldAddModel):
+class Category(AddPublishedCreatedFieldModel):
     title = models.CharField('Заголовок',
                              max_length=256)
     description = models.TextField('Описание')
@@ -70,7 +70,7 @@ class Category(FieldAddModel):
         return self.title
 
 
-class Location(FieldAddModel):
+class Location(AddPublishedCreatedFieldModel):
     name = models.CharField('Название места',
                             max_length=256)
 
@@ -94,5 +94,7 @@ class Comments(models.Model):
                              verbose_name='Пост')
 
     class Meta:
+        verbose_name = 'комментарий'
+        verbose_name_plural = 'Комментарии'
         default_related_name = 'comments'
         ordering = 'created_at',

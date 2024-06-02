@@ -38,7 +38,7 @@ urlpatterns = [
          name='post_detail'
          ),
     path('category/<slug:category_slug>/',
-         views.CategoryDetailViev.as_view(),
+         views.CategoryListViev.as_view(),
          name='category_posts'
          ),
     path('profile/edit/',
@@ -46,7 +46,7 @@ urlpatterns = [
          name='edit_profile'
          ),
     path('profile/<slug:username>/',
-         views.ProfileDetailViev.as_view(),
+         views.ProfileListViev.as_view(),
          name='profile'
          ),
 ]

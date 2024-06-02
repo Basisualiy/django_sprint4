@@ -14,10 +14,15 @@ from django.views.generic import (CreateView,
                                   UpdateView,)
 
 from .forms import UserForm, CommentsForm, PostForm
+from .mixins import (AddAuthorMixin,
+                     UserIsAuthorMixin,
+                     AddCommentPostInContextMixin)
 from .models import Post, Category, Comments, User
 
 
 POST_ON_PAGE = 10
+SORT_BY_PUBLISH_DATE = '-pub_date'
+SORT_BY_CREATED_DATE = 'created_at'
 
 
 def now():
@@ -27,33 +32,24 @@ def now():
 def query():
     return (Post.objects
             .select_related('author', 'location', 'category')
-            .order_by('-pub_date')
+            .order_by(SORT_BY_PUBLISH_DATE)
             .annotate(comment_count=Count('comments'))
             )
 
 
-class ProfileDetailViev(ListView):
-    author = None
+class ProfileListViev(AddAuthorMixin, ListView):
     model = Post
     template_name = 'blog/profile.html'
     slug_field = 'username'
     slug_url_kwarg = 'username'
-    queryset = query()
     paginate_by = POST_ON_PAGE
-
-    def dispatch(self, request, *args, **kwargs):
-        self.author = get_object_or_404(User,
-                                        username=kwargs['username'])
-        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         if self.request.user == self.author:
-            queryset = (super()
-                        .get_queryset()
+            queryset = (query()
                         .filter(author__username=self.kwargs['username'],))
         else:
-            queryset = (super()
-                        .get_queryset()
+            queryset = (query()
                         .filter(author__username=self.kwargs['username'],
                                 is_published=True,
                                 category__is_published=True,
@@ -92,60 +88,36 @@ def edit_profile(request):
     template = 'blog/user.html'
     instance = request.user or None
     form = UserForm(request.POST or None, instance=instance)
-    context = {'form': form}
     if form.is_valid():
         form.save()
         return redirect('blog:profile', username=request.user.username)
+    context = {'form': form}
     return render(request, template, context)
 
 
-class CommentUpdateView(LoginRequiredMixin, UpdateView):
+class CommentUpdateView(LoginRequiredMixin,
+                        UserIsAuthorMixin,
+                        AddCommentPostInContextMixin,
+                        UpdateView):
     model = Comments
     template_name = 'blog/comment.html'
     slug_field = 'id'
     slug_url_kwarg = 'comment_id'
     form_class = CommentsForm
 
-    def dispatch(self, request, *args, **kwargs):
-        if request.user == self.get_object().author:
-            return super().dispatch(request, *args, **kwargs)
-        else:
-            return redirect('blog:post_detail',
-                            self.kwargs['post_id'])
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['comment'] = get_object_or_404(self.model,
-                                               pk=self.kwargs['comment_id'])
-        context['post'] = get_object_or_404(Post,
-                                            pk=self.kwargs['post_id'])
-        return context
-
     def get_success_url(self):
         return reverse('blog:post_detail',
                        kwargs={'post_id': self.kwargs['post_id']})
 
 
-class CommentDeleteView(LoginRequiredMixin, DeleteView):
+class CommentDeleteView(LoginRequiredMixin,
+                        UserIsAuthorMixin,
+                        AddCommentPostInContextMixin,
+                        DeleteView):
     model = Comments
     template_name = 'blog/comment.html'
     slug_field = 'id'
     slug_url_kwarg = 'comment_id'
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.user == self.get_object().author:
-            return super().dispatch(request, *args, **kwargs)
-        else:
-            return redirect('blog:post_detail',
-                            self.kwargs['post_id'])
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['comment'] = get_object_or_404(self.model,
-                                               pk=self.kwargs['comment_id'])
-        context['post'] = get_object_or_404(Post,
-                                            pk=self.kwargs['post_id'])
-        return context
 
     def get_success_url(self):
         return reverse('blog:post_detail',
@@ -153,7 +125,6 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
 
 
 class PostCreateView(LoginRequiredMixin, CreateView):
-    author = None
     model = Post
     form_class = PostForm
     template_name = 'blog/create.html'
@@ -179,14 +150,14 @@ class IndexListViev(ListView):
 def post_detail(request, post_id):
     template = 'blog/detail.html'
     post = get_object_or_404(Post, pk=post_id)
-    if ((post.is_published is False
-         or post.category.is_published is False
+    if ((not post.is_published
+         or not post.category.is_published
          or post.pub_date >= now())
        and request.user != post.author):
-        raise Http404
+        raise Http404('Страница поста не найдена')
     comments = (Comments.objects
                 .filter(post__id=post_id)
-                .order_by('created_at'))
+                .order_by(SORT_BY_CREATED_DATE))
     form = CommentsForm()
     context = {'post': post,
                'form': form,
@@ -194,21 +165,18 @@ def post_detail(request, post_id):
     return render(request, template, context)
 
 
-class CategoryDetailViev(ListView):
+class CategoryListViev(ListView):
     model = Post
     template_name = 'blog/category.html'
     slug_field = 'category__slug'
     slug_url_kwarg = 'category_slug'
     paginate_by = POST_ON_PAGE
-    queryset = query()
 
     def get_queryset(self):
-        queryset = (super()
-                    .get_queryset()
-                    .filter(category__slug=self.kwargs['category_slug'],
-                            pub_date__lt=now(),
-                            is_published=True,
-                            category__is_published=True))
+        queryset = (query().filter(category__slug=self.kwargs['category_slug'],
+                                   pub_date__lt=now(),
+                                   is_published=True,
+                                   category__is_published=True))
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -221,19 +189,12 @@ class CategoryDetailViev(ListView):
         return context
 
 
-class EditPostUpdateView(LoginRequiredMixin, UpdateView):
+class EditPostUpdateView(LoginRequiredMixin, UserIsAuthorMixin, UpdateView):
     model = Post
     template_name = 'blog/create.html'
     form_class = PostForm
     slug_field = 'id'
     slug_url_kwarg = 'post_id'
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.user == self.get_object().author:
-            return super().dispatch(request, *args, **kwargs)
-        else:
-            return redirect('blog:post_detail',
-                            self.kwargs['post_id'])
 
     def get_queryset(self):
         queryset = (super()
@@ -250,19 +211,12 @@ class EditPostUpdateView(LoginRequiredMixin, UpdateView):
                        kwargs={'post_id': self.kwargs['post_id']})
 
 
-class PostDeleteView(LoginRequiredMixin, DeleteView):
+class PostDeleteView(LoginRequiredMixin, UserIsAuthorMixin, DeleteView):
     model = Post
     template_name = 'blog/create.html'
     slug_field = 'id'
     slug_url_kwarg = 'post_id'
     success_url = reverse_lazy('blog:index')
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.user == self.get_object().author:
-            return super().dispatch(request, *args, **kwargs)
-        else:
-            return redirect('blog:post_detail',
-                            self.kwargs['post_id'])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

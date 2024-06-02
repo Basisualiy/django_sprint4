@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 
-from .models import Category, Location, Post
+from .models import Category, Location, Post, Comments
 
 
 class AdminPost(admin.ModelAdmin):
@@ -63,6 +63,18 @@ class LocationAdmin(admin.ModelAdmin):
     ]
 
 
+class CommentsAdmin(admin.ModelAdmin):
+    list_display = (
+        'text',
+        'author',
+        'post',
+    )
+    list_filter = [
+        'created_at',
+    ]
+
+
+admin.site.register(Post, AdminPost)
+admin.site.register(Comments, CommentsAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(Location, LocationAdmin)
-admin.site.register(Post, AdminPost)
