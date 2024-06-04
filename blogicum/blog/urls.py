@@ -6,7 +6,7 @@ app_name = 'blog'
 
 urlpatterns = [
     path('',
-         views.IndexListViev.as_view(),
+         views.IndexListView.as_view(),
          name='index'
          ),
     path('posts/create/',

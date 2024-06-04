@@ -138,7 +138,7 @@ class PostCreateView(LoginRequiredMixin, CreateView):
                        kwargs={'username': self.object.author.username})
 
 
-class IndexListViev(ListView):
+class IndexListView(ListView):
     model = Post
     queryset = query().filter(is_published=True,
                               pub_date__lt=now(),
@@ -158,9 +158,8 @@ def post_detail(request, post_id):
     comments = (Comments.objects
                 .filter(post__id=post_id)
                 .order_by(SORT_BY_CREATED_DATE))
-    form = CommentsForm()
     context = {'post': post,
-               'form': form,
+               'form': CommentsForm(),
                'comments': comments}
     return render(request, template, context)
 
@@ -173,11 +172,10 @@ class CategoryListViev(ListView):
     paginate_by = POST_ON_PAGE
 
     def get_queryset(self):
-        queryset = (query().filter(category__slug=self.kwargs['category_slug'],
-                                   pub_date__lt=now(),
-                                   is_published=True,
-                                   category__is_published=True))
-        return queryset
+        return (query().filter(category__slug=self.kwargs['category_slug'],
+                               pub_date__lt=now(),
+                               is_published=True,
+                               category__is_published=True))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -197,10 +195,9 @@ class EditPostUpdateView(LoginRequiredMixin, UserIsAuthorMixin, UpdateView):
     slug_url_kwarg = 'post_id'
 
     def get_queryset(self):
-        queryset = (super()
-                    .get_queryset()
-                    .filter(id=self.kwargs['post_id']))
-        return queryset
+        return (super()
+                .get_queryset()
+                .filter(id=self.kwargs['post_id']))
 
     def form_valid(self, form):
         form.instance.author = self.request.user
@@ -227,7 +224,6 @@ class PostDeleteView(LoginRequiredMixin, UserIsAuthorMixin, DeleteView):
         return context
 
     def get_queryset(self):
-        queryset = (super()
-                    .get_queryset()
-                    .filter(id=self.kwargs['post_id']))
-        return queryset
+        return (super()
+                .get_queryset()
+                .filter(id=self.kwargs['post_id']))
