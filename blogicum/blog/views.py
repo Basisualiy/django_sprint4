@@ -101,8 +101,7 @@ class CommentUpdateView(LoginRequiredMixin,
                         UpdateView):
     model = Comments
     template_name = 'blog/comment.html'
-    slug_field = 'id'
-    slug_url_kwarg = 'comment_id'
+    pk_url_kwarg = 'comment_id'
     form_class = CommentsForm
 
     def get_success_url(self):
@@ -116,8 +115,7 @@ class CommentDeleteView(LoginRequiredMixin,
                         DeleteView):
     model = Comments
     template_name = 'blog/comment.html'
-    slug_field = 'id'
-    slug_url_kwarg = 'comment_id'
+    pk_url_kwarg = 'comment_id'
 
     def get_success_url(self):
         return reverse('blog:post_detail',
@@ -191,13 +189,7 @@ class EditPostUpdateView(LoginRequiredMixin, UserIsAuthorMixin, UpdateView):
     model = Post
     template_name = 'blog/create.html'
     form_class = PostForm
-    slug_field = 'id'
-    slug_url_kwarg = 'post_id'
-
-    def get_queryset(self):
-        return (super()
-                .get_queryset()
-                .filter(id=self.kwargs['post_id']))
+    pk_url_kwarg = 'post_id'
 
     def form_valid(self, form):
         form.instance.author = self.request.user
@@ -211,8 +203,7 @@ class EditPostUpdateView(LoginRequiredMixin, UserIsAuthorMixin, UpdateView):
 class PostDeleteView(LoginRequiredMixin, UserIsAuthorMixin, DeleteView):
     model = Post
     template_name = 'blog/create.html'
-    slug_field = 'id'
-    slug_url_kwarg = 'post_id'
+    pk_url_kwarg = 'post_id'
     success_url = reverse_lazy('blog:index')
 
     def get_context_data(self, **kwargs):
